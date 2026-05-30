@@ -87,6 +87,7 @@ members = [
     "crates/git_graph",
     "crates/git_hosting_providers",
     "crates/git_ui",
+    "crates/gitview_ui",
     "crates/go_to_line",
     "crates/google_ai",
     "crates/grammars",
@@ -123,6 +124,7 @@ members = [
     "crates/language_selector",
     "crates/language_tools",
     "crates/languages",
+    "crates/lean_git_core",
     "crates/line_ending_selector",
     "crates/livekit_api",
     "crates/livekit_client",
@@ -345,6 +347,7 @@ git = { path = "crates/git" }
 git_graph = { path = "crates/git_graph" }
 git_hosting_providers = { path = "crates/git_hosting_providers" }
 git_ui = { path = "crates/git_ui" }
+gitview_ui = { path = "crates/gitview_ui" }
 go_to_line = { path = "crates/go_to_line" }
 google_ai = { path = "crates/google_ai" }
 grammars = { path = "crates/grammars" }
@@ -384,6 +387,7 @@ language_onboarding = { path = "crates/language_onboarding" }
 language_selector = { path = "crates/language_selector" }
 language_tools = { path = "crates/language_tools" }
 languages = { path = "crates/languages" }
+lean_git_core = { path = "crates/lean_git_core" }
 line_ending_selector = { path = "crates/line_ending_selector" }
 livekit_api = { path = "crates/livekit_api" }
 livekit_client = { path = "crates/livekit_client" }

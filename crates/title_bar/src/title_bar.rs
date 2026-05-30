@@ -315,6 +315,14 @@ impl Render for TitleBar {
                 })
                 .gap_1()
                 .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                .child(
+                    IconButton::new("open-git-view", IconName::GitBranch)
+                        .icon_size(IconSize::Small)
+                        .tooltip(Tooltip::text("Open Git View"))
+                        .on_click(|_, window, cx| {
+                            window.dispatch_action(Box::new(gitview_ui::OpenGitView), cx)
+                        }),
+                )
                 .children(self.render_call_controls(window, cx))
                 .children(self.render_connection_status(status, cx))
                 .child(self.update_version.clone())

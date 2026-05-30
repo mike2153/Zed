@@ -7782,6 +7782,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "gitview_ui"
+version = "0.1.0"
+dependencies = [
+ "gpui",
+ "lean_git_core",
+ "project",
+ "settings",
+ "theme",
+ "theme_settings",
+ "ui",
+ "ui_input",
+ "workspace",
+]
+
+[[package]]
 name = "gl_generator"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -10364,6 +10379,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "40a8225d44241fd324a8af2806ba635fc7c8a7e9a7de4d5cf3ef54e71f5926fc"
 dependencies = [
  "leak",
+]
+
+[[package]]
+name = "lean_git_core"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
@@ -19246,6 +19269,7 @@ dependencies = [
  "db",
  "fs",
  "git_ui",
+ "gitview_ui",
  "gpui",
  "icons",
  "livekit_client",
@@ -23568,6 +23592,7 @@ dependencies = [
  "git_graph",
  "git_hosting_providers",
  "git_ui",
+ "gitview_ui",
  "go_to_line",
  "gpui",
  "gpui_platform",
