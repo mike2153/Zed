@@ -95,7 +95,12 @@ fn app_service_stage_commit_push_then_pull_against_local_bare_remote() {
 
     // A bare remote plus a working clone that already has one commit, so the
     // branch (and its eventual upstream) exists.
-    run_git_no_repo(&["init", "--bare", "--initial-branch=main", remote.to_str().unwrap()]);
+    run_git_no_repo(&[
+        "init",
+        "--bare",
+        "--initial-branch=main",
+        remote.to_str().unwrap(),
+    ]);
     run_git_no_repo(&["clone", remote.to_str().unwrap(), work.to_str().unwrap()]);
     run_git(&work, &["config", "user.email", "test@example.invalid"]);
     run_git(&work, &["config", "user.name", "Lean Git Test"]);
@@ -168,7 +173,12 @@ fn app_service_push_blocked_when_repo_is_untrusted() {
     let remote = root.join("remote.git");
     let work = root.join("work");
 
-    run_git_no_repo(&["init", "--bare", "--initial-branch=main", remote.to_str().unwrap()]);
+    run_git_no_repo(&[
+        "init",
+        "--bare",
+        "--initial-branch=main",
+        remote.to_str().unwrap(),
+    ]);
     run_git_no_repo(&["clone", remote.to_str().unwrap(), work.to_str().unwrap()]);
     run_git(&work, &["config", "user.email", "test@example.invalid"]);
     run_git(&work, &["config", "user.name", "Lean Git Test"]);

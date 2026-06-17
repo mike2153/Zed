@@ -205,7 +205,10 @@ pub fn compute_graph_layout(commits: &[CommitSummary]) -> GraphLayout {
 /// Find the lane currently waiting for `parent`, or claim the first free lane,
 /// or append a new one. Mirrors the engine's allocation order.
 fn allocate_lane(active: &mut Vec<Option<String>>, parent: &str) -> usize {
-    if let Some(existing) = active.iter().position(|slot| slot.as_deref() == Some(parent)) {
+    if let Some(existing) = active
+        .iter()
+        .position(|slot| slot.as_deref() == Some(parent))
+    {
         return existing;
     }
     if let Some(free) = active.iter().position(Option::is_none) {
@@ -247,9 +250,8 @@ pub fn commit_graph(
             let lane_w = metrics.lane_width;
             let gutter = metrics.gutter;
 
-            let lane_x = |lane: usize| -> Pixels {
-                origin.x + gutter + lane_w * lane as f32 + lane_w / 2.
-            };
+            let lane_x =
+                |lane: usize| -> Pixels { origin.x + gutter + lane_w * lane as f32 + lane_w / 2. };
 
             for (i, row) in layout.rows.iter().enumerate() {
                 let row_top = origin.y + row_h * i as f32;
@@ -351,16 +353,18 @@ mod tests {
         // Every dot in lane 0.
         assert!(layout.rows.iter().all(|row| row.dot_lane == 0));
         // No pass-through lines are needed for a straight line.
-        assert!(
-            layout
-                .rows
+        assert!(layout.rows.iter().all(|row| {
+            row.segments
                 .iter()
-                .all(|row| row.segments.iter().all(|s| s.kind != SegmentKind::PassThrough))
-        );
+                .all(|s| s.kind != SegmentKind::PassThrough)
+        }));
         // The first commit emits one out-of-dot toward its parent; the root
         // commit emits none.
         let out = |row: &GraphRowLayout| {
-            row.segments.iter().filter(|s| s.kind == SegmentKind::OutOfDot).count()
+            row.segments
+                .iter()
+                .filter(|s| s.kind == SegmentKind::OutOfDot)
+                .count()
         };
         assert_eq!(out(&layout.rows[0]), 1);
         assert_eq!(out(&layout.rows[2]), 0);

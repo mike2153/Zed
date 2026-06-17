@@ -37,6 +37,7 @@ pub struct AppService {
     config_load_error: Option<String>,
     inner: Arc<Mutex<AppState>>,
     config_write_lock: Arc<Mutex<()>>,
+    host_trusted_repos: Arc<Mutex<BTreeSet<String>>>,
 }
 
 impl Clone for AppService {
@@ -48,6 +49,7 @@ impl Clone for AppService {
             config_load_error: self.config_load_error.clone(),
             inner: Arc::clone(&self.inner),
             config_write_lock: Arc::clone(&self.config_write_lock),
+            host_trusted_repos: Arc::clone(&self.host_trusted_repos),
         }
     }
 }
@@ -75,6 +77,7 @@ impl AppService {
             config_load_error,
             inner: Arc::new(Mutex::new(AppState::new(config))),
             config_write_lock: Arc::new(Mutex::new(())),
+            host_trusted_repos: Arc::new(Mutex::new(BTreeSet::new())),
         }
     }
 
@@ -270,6 +273,24 @@ impl AppService {
         };
         self.persist_config(&config)?;
         Ok(summary)
+    }
+
+    /// Records that an embedding host already trusts this repository.
+    ///
+    /// This is intentionally runtime-only: hosts such as Zed persist trust in
+    /// their own trusted-worktree store. When host trust is present, mutation
+    /// gates accept the repository without running this standalone engine's
+    /// local `.git/config` trust scan, so the embedded view follows the host's
+    /// trust decision exactly.
+    pub fn set_repo_trusted_by_host(&self, repo_id: &str, trusted: bool) -> AppResult<()> {
+        self.repo_for(repo_id)?;
+        let mut host_trusted_repos = self.lock_host_trusted_repos()?;
+        if trusted {
+            host_trusted_repos.insert(repo_id.to_string());
+        } else {
+            host_trusted_repos.remove(repo_id);
+        }
+        Ok(())
     }
 
     pub fn refresh_repo(&self, repo_id: String) -> AppResult<RepoStatus> {
@@ -890,9 +911,16 @@ impl AppService {
     }
 
     fn require_current_trusted_repo(&self, repo: &RepoConfig) -> AppResult<()> {
-        require_trusted_repo(repo)?;
+        let trusted_by_host = self.repo_trusted_by_host(&repo.id)?;
+        if !repo.trusted && !trusted_by_host {
+            return require_trusted_repo(repo);
+        }
         self.ensure_repo_identity_current(repo)?;
-        ensure_repo_local_git_config_safe(repo)
+        if trusted_by_host {
+            Ok(())
+        } else {
+            ensure_repo_local_git_config_safe(repo)
+        }
     }
 
     fn ensure_repo_identity_current(&self, repo: &RepoConfig) -> AppResult<()> {
@@ -965,6 +993,16 @@ impl AppService {
         self.config_write_lock
             .lock()
             .map_err(|_| AppError::new("config_write_lock", "config write lock poisoned"))
+    }
+
+    fn lock_host_trusted_repos(&self) -> AppResult<std::sync::MutexGuard<'_, BTreeSet<String>>> {
+        self.host_trusted_repos
+            .lock()
+            .map_err(|_| AppError::new("host_trust_lock", "host trust lock poisoned"))
+    }
+
+    fn repo_trusted_by_host(&self, repo_id: &str) -> AppResult<bool> {
+        Ok(self.lock_host_trusted_repos()?.contains(repo_id))
     }
 }
 

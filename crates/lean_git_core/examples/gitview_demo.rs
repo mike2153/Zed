@@ -98,7 +98,10 @@ fn main() -> io::Result<()> {
     // --- Fetch + fast-forward pull a change made elsewhere ------------------
     git(&verify, &["config", "user.email", "demo@example.invalid"]);
     git(&verify, &["config", "user.name", "GitView Demo"]);
-    fs::write(verify.join("README.md"), format!("{remote_doc}Line three.\n"))?;
+    fs::write(
+        verify.join("README.md"),
+        format!("{remote_doc}Line three.\n"),
+    )?;
     git(&verify, &["commit", "-am", "docs: add line three"]);
     git(&verify, &["push"]);
 
@@ -113,7 +116,10 @@ fn main() -> io::Result<()> {
 
     // Operation log recorded by the engine.
     println!("\nengine operation log:");
-    for entry in unwrap("operation_log", service.operation_log()).iter().take(12) {
+    for entry in unwrap("operation_log", service.operation_log())
+        .iter()
+        .take(12)
+    {
         println!(
             "  {:<6} ok={:<5} {}ms  {}",
             entry.action,
@@ -165,15 +171,16 @@ fn scratch_dir() -> PathBuf {
 }
 
 fn git_bare_init(path: &Path) {
-    run(Command::new("git").args(["init", "--bare", "--initial-branch=main", &path.to_string_lossy()]));
+    run(Command::new("git").args([
+        "init",
+        "--bare",
+        "--initial-branch=main",
+        &path.to_string_lossy(),
+    ]));
 }
 
 fn git_clone(remote: &Path, into: &Path) {
-    run(Command::new("git").args([
-        "clone",
-        &remote.to_string_lossy(),
-        &into.to_string_lossy(),
-    ]));
+    run(Command::new("git").args(["clone", &remote.to_string_lossy(), &into.to_string_lossy()]));
 }
 
 fn git(repo: &Path, args: &[&str]) {
@@ -181,7 +188,12 @@ fn git(repo: &Path, args: &[&str]) {
 }
 
 fn git_stdout(repo: &Path, args: &[&str]) -> String {
-    let output = Command::new("git").arg("-C").arg(repo).args(args).output().unwrap();
+    let output = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .output()
+        .unwrap();
     assert!(output.status.success(), "git {args:?} failed");
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }

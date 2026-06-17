@@ -323,6 +323,34 @@ fn app_service_trust_gate_stage_and_commit_flow() {
 }
 
 #[test]
+fn app_service_host_trust_uses_external_trust_decision_for_mutations() {
+    let repo = init_repo("service_host_trust");
+    run_git(&repo, &["config", "core.fsmonitor", "marker-helper"]);
+    fs::write(repo.join("host-trusted.txt"), "host trusted\n").unwrap();
+    let service = test_service("service_host_trust");
+    let summary = service.add_repo(&repo).unwrap();
+
+    let standalone_trust = service.set_repo_trusted(&summary.id, true).unwrap_err();
+    assert_eq!(standalone_trust.code, "unsafe_repo_config");
+
+    service.set_repo_trusted_by_host(&summary.id, true).unwrap();
+    let staged = service
+        .stage_paths(summary.id.clone(), vec!["host-trusted.txt".to_string()])
+        .unwrap();
+    assert_eq!(staged.staged[0].path, "host-trusted.txt");
+
+    service
+        .set_repo_trusted_by_host(&summary.id, false)
+        .unwrap();
+    let blocked = service
+        .unstage_paths(summary.id.clone(), vec!["host-trusted.txt".to_string()])
+        .unwrap_err();
+    assert_eq!(blocked.code, "repo_untrusted");
+
+    let _ = fs::remove_dir_all(repo);
+}
+
+#[test]
 fn app_service_blocks_trust_when_repo_local_credential_helper_is_configured() {
     let repo = init_repo("unsafe_local_credential");
     run_git(&repo, &["config", "credential.helper", "!echo helper-ran"]);

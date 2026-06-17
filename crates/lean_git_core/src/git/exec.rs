@@ -74,6 +74,7 @@ impl GitExec {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
         apply_noninteractive_env(&mut command);
+        suppress_console_window(&mut command);
 
         let mut child = command
             .spawn()
@@ -243,16 +244,30 @@ fn terminate_child_process_tree(child: &mut Child) {
     #[cfg(windows)]
     {
         let pid = child.id().to_string();
-        let _ = Command::new("taskkill.exe")
-            .args(["/PID", pid.as_str(), "/T", "/F"])
+        let mut kill = Command::new("taskkill.exe");
+        kill.args(["/PID", pid.as_str(), "/T", "/F"])
             .stdin(Stdio::null())
             .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .status();
+            .stderr(Stdio::null());
+        suppress_console_window(&mut kill);
+        let _ = kill.status();
     }
     let _ = child.kill();
     let _ = child.wait();
 }
+
+/// On Windows, prevents a console window from briefly flashing each time a
+/// child process is spawned from the (console-less) GUI. No-op elsewhere.
+#[cfg(windows)]
+fn suppress_console_window(command: &mut Command) {
+    use std::os::windows::process::CommandExt;
+    // CREATE_NO_WINDOW: run the child without allocating a console window.
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    command.creation_flags(CREATE_NO_WINDOW);
+}
+
+#[cfg(not(windows))]
+fn suppress_console_window(_command: &mut Command) {}
 
 pub fn safe_read_only_args(args: Vec<String>) -> Vec<String> {
     let mut safe_args = vec![

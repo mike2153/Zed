@@ -223,18 +223,35 @@ impl GitViewItem {
         }
 
         let project = workspace.project().clone();
-        let repo_root = project
-            .read(cx)
-            .active_repository(cx)
-            .map(|repo| repo.read(cx).work_directory_abs_path.clone());
+        let active_repository = project.read(cx).active_repository(cx);
+        let (repo_root, repo_trusted) = active_repository
+            .as_ref()
+            .map(|repo| {
+                let repo = repo.read(cx);
+                (
+                    Some(repo.work_directory_abs_path.clone()),
+                    repo.is_trusted(),
+                )
+            })
+            .unwrap_or((None, false));
         let workspace_handle = cx.weak_entity();
 
-        let item = cx.new(|cx| GitViewItem::new(repo_root, project, workspace_handle, window, cx));
+        let item = cx.new(|cx| {
+            GitViewItem::new(
+                repo_root,
+                repo_trusted,
+                project,
+                workspace_handle,
+                window,
+                cx,
+            )
+        });
         workspace.add_item_to_active_pane(Box::new(item), None, true, window, cx);
     }
 
     fn new(
         repo_root: Option<Arc<Path>>,
+        repo_trusted: bool,
         _project: Entity<Project>,
         _workspace: WeakEntity<Workspace>,
         window: &mut Window,
@@ -251,7 +268,7 @@ impl GitViewItem {
             selected: None,
             diff: None,
             commit_input,
-            trusted: false,
+            trusted: repo_trusted,
             loading: false,
             remote_busy: false,
             error: None,
@@ -267,7 +284,7 @@ impl GitViewItem {
         };
 
         match repo_root {
-            Some(root) => this.start_open(root, cx),
+            Some(root) => this.start_open(root, repo_trusted, cx),
             None => {
                 this.error = Some("No git repository is open in this project.".into());
             }
@@ -276,12 +293,14 @@ impl GitViewItem {
         this
     }
 
-    /// Loads the engine, registers the open repo, trusts it, and reads its
-    /// status. All of this runs on a background thread because every step is
-    /// blocking I/O (config load, git executable resolution, and `git` calls).
-    fn start_open(&mut self, root: Arc<Path>, cx: &mut Context<Self>) {
+    /// Loads the engine, registers the open repo, applies Zed's trust decision,
+    /// and reads its status. All of this runs on a background thread because
+    /// every step is blocking I/O (config load, git executable resolution, and
+    /// `git` calls).
+    fn start_open(&mut self, root: Arc<Path>, repo_trusted: bool, cx: &mut Context<Self>) {
         self.loading = true;
         self.error = None;
+        self.trusted = repo_trusted;
         self._status_task = cx.spawn(async move |this, cx| {
             let outcome = cx
                 .background_spawn(async move {
@@ -289,42 +308,33 @@ impl GitViewItem {
                     let summary = service.add_repo(root.as_ref())?;
                     let id = summary.id.clone();
                     service.set_active_repo(&id)?;
-                    // The open repo is the one the user already has loaded in
-                    // their editor, so we trust it up front. set_repo_trusted
-                    // still runs the engine's .git/config safety scan and fails
-                    // closed if unsafe; we surface that failure rather than hide
-                    // it, since otherwise mutations would silently no-op.
-                    let trust = service.set_repo_trusted(&id, true);
+                    if repo_trusted {
+                        service.set_repo_trusted_by_host(&id, true)?;
+                    } else {
+                        service.set_repo_trusted_by_host(&id, false)?;
+                        let _ = service.set_repo_trusted(&id, false);
+                    }
                     let status = service.refresh_repo(id.clone())?;
-                    Ok::<_, AppError>((service, id, trust, status))
+                    Ok::<_, AppError>((service, id, status))
                 })
                 .await;
 
             this.update(cx, |this, cx| {
                 this.loading = false;
                 match outcome {
-                    Ok((service, id, trust, status)) => {
+                    Ok((service, id, status)) => {
                         this.service = Some(service);
                         this.repo_id = id;
                         this.status = Some(status);
-                        match trust {
-                            Ok(summary) => {
-                                this.trusted = summary.trusted;
-                                this.error = if summary.trusted {
-                                    None
-                                } else {
-                                    Some(
-                                        "Repository is not trusted; staging and commits are \
-                                         disabled."
-                                            .into(),
-                                    )
-                                };
-                            }
-                            Err(error) => {
-                                this.trusted = false;
-                                this.error = Some(format!("Repository not trusted: {}", error.message));
-                            }
-                        }
+                        this.trusted = repo_trusted;
+                        this.error = if repo_trusted {
+                            None
+                        } else {
+                            Some(
+                                "Repository is not trusted in Zed; staging and commits are disabled."
+                                    .into(),
+                            )
+                        };
                     }
                     Err(error) => this.error = Some(error.message),
                 }
@@ -339,7 +349,7 @@ impl GitViewItem {
             // The engine never loaded (e.g. the open failed); retry the full
             // open pipeline if we still have a repo root.
             if let Some(root) = self.repo_root.clone() {
-                self.start_open(root, cx);
+                self.start_open(root, self.trusted, cx);
             }
             return;
         };
@@ -348,7 +358,9 @@ impl GitViewItem {
         }
         let id = self.repo_id.clone();
         self._status_task = cx.spawn(async move |this, cx| {
-            let outcome = cx.background_spawn(async move { service.refresh_repo(id) }).await;
+            let outcome = cx
+                .background_spawn(async move { service.refresh_repo(id) })
+                .await;
             this.update(cx, |this, cx| {
                 this.apply_status_outcome(outcome);
                 this.reload_selected_diff(cx);
@@ -726,9 +738,13 @@ impl GitViewItem {
                     })
                     .when(self.loading || self.remote_busy, |this| {
                         this.child(
-                            Label::new(if self.remote_busy { "Working…" } else { "Loading…" })
-                                .size(LabelSize::Small)
-                                .color(Color::Muted),
+                            Label::new(if self.remote_busy {
+                                "Working…"
+                            } else {
+                                "Loading…"
+                            })
+                            .size(LabelSize::Small)
+                            .color(Color::Muted),
                         )
                     })
                     .when(!self.trusted && !self.repo_id.is_empty(), |this| {
@@ -859,7 +875,12 @@ impl GitViewItem {
         let has_status = self.status.is_some();
         let sections = self.status.as_ref().map(|status| {
             [
-                self.render_section("Conflicted", &status.conflicted, StatusBucket::Conflicted, cx),
+                self.render_section(
+                    "Conflicted",
+                    &status.conflicted,
+                    StatusBucket::Conflicted,
+                    cx,
+                ),
                 self.render_section("Staged", &status.staged, StatusBucket::Staged, cx),
                 self.render_section("Unstaged", &status.unstaged, StatusBucket::Unstaged, cx),
                 self.render_section("Untracked", &status.untracked, StatusBucket::Untracked, cx),
@@ -869,7 +890,9 @@ impl GitViewItem {
             .collect::<Vec<_>>()
         });
 
-        let working_tree_clean = sections.as_ref().is_some_and(|sections| sections.is_empty());
+        let working_tree_clean = sections
+            .as_ref()
+            .is_some_and(|sections| sections.is_empty());
         let commit_disabled = !(self.trusted && has_staged_changes(self.status.as_ref()));
         let can_stage_all = self.trusted
             && self
@@ -913,9 +936,9 @@ impl GitViewItem {
                                 Button::new("gitview-stage-all", "Stage all")
                                     .style(ButtonStyle::Subtle)
                                     .disabled(!can_stage_all)
-                                    .on_click(cx.listener(|this, _event, _window, cx| {
-                                        this.stage_all(cx)
-                                    })),
+                                    .on_click(
+                                        cx.listener(|this, _event, _window, cx| this.stage_all(cx)),
+                                    ),
                             )
                             .child(
                                 Button::new("gitview-unstage-all", "Unstage all")
@@ -1038,13 +1061,17 @@ impl GitViewItem {
                             }
                             rendered += 1;
                             let (text_color, background) = match line.kind {
-                                DiffLineKind::Added => {
-                                    (status_colors.created, Some(status_colors.created_background))
+                                DiffLineKind::Added => (
+                                    status_colors.created,
+                                    Some(status_colors.created_background),
+                                ),
+                                DiffLineKind::Removed => (
+                                    status_colors.deleted,
+                                    Some(status_colors.deleted_background),
+                                ),
+                                DiffLineKind::Hunk | DiffLineKind::Meta => {
+                                    (colors.text_muted, None)
                                 }
-                                DiffLineKind::Removed => {
-                                    (status_colors.deleted, Some(status_colors.deleted_background))
-                                }
-                                DiffLineKind::Hunk | DiffLineKind::Meta => (colors.text_muted, None),
                                 DiffLineKind::Context => (colors.text, None),
                             };
                             let prefix = diff_line_prefix(line.kind);
@@ -1330,7 +1357,10 @@ mod tests {
 
     fn status_with_staged(paths: &[&str]) -> RepoStatus {
         let mut status = RepoStatus::empty("repo".to_string());
-        status.staged = paths.iter().map(|path| file(path, StatusBucket::Staged)).collect();
+        status.staged = paths
+            .iter()
+            .map(|path| file(path, StatusBucket::Staged))
+            .collect();
         status
     }
 
@@ -1346,7 +1376,9 @@ mod tests {
     #[test]
     fn has_staged_changes_detects_staged_files() {
         assert!(!has_staged_changes(None));
-        assert!(!has_staged_changes(Some(&RepoStatus::empty("repo".to_string()))));
+        assert!(!has_staged_changes(Some(&RepoStatus::empty(
+            "repo".to_string()
+        ))));
         assert!(has_staged_changes(Some(&status_with_staged(&["a.rs"]))));
     }
 
