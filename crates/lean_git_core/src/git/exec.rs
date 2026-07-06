@@ -261,9 +261,13 @@ fn terminate_child_process_tree(child: &mut Child) {
 #[cfg(windows)]
 fn suppress_console_window(command: &mut Command) {
     use std::os::windows::process::CommandExt;
-    // CREATE_NO_WINDOW: run the child without allocating a console window.
+    // CREATE_NO_WINDOW prevents git.exe/cmd.exe from allocating a console when
+    // Zed is running as a GUI app. DETACHED_PROCESS is an extra belt-and-
+    // suspenders guard for Git-for-Windows shims or helper processes that would
+    // otherwise briefly flash a shell window when GitView opens a repository.
+    const DETACHED_PROCESS: u32 = 0x0000_0008;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
-    command.creation_flags(CREATE_NO_WINDOW);
+    command.creation_flags(DETACHED_PROCESS | CREATE_NO_WINDOW);
 }
 
 #[cfg(not(windows))]
