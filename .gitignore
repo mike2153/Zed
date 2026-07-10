@@ -2,6 +2,7 @@
 **/*.proptest-regressions
 **/cargo-target
 **/target
+/dist/
 .webrtc-sys/
 **/venv
 **/.direnv

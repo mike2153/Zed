@@ -16,7 +16,6 @@ members = [
     "crates/assets",
     "crates/audio",
     "crates/auto_update",
-    "crates/auto_update_helper",
     "crates/auto_update_ui",
     "crates/aws_http_client",
     "crates/bedrock",
@@ -31,7 +30,6 @@ members = [
     "crates/cloud_api_types",
     "crates/cloud_llm_client",
     "crates/codestral",
-    "crates/collab",
     "crates/collab_ui",
     "crates/collections",
     "crates/command_palette",
@@ -54,24 +52,17 @@ members = [
     "crates/denoise",
     "crates/dev_container",
     "crates/diagnostics",
-    "crates/docs_preprocessor",
     "crates/edit_prediction",
-    "crates/edit_prediction_cli",
     "crates/edit_prediction_context",
     "crates/edit_prediction_metrics",
     "crates/edit_prediction_types",
     "crates/edit_prediction_ui",
     "crates/editor",
-    "crates/editor_benchmarks",
     "crates/encoding_selector",
     "crates/env_var",
     "crates/etw_tracing",
-    "crates/eval_cli",
     "crates/eval_utils",
-    "crates/explorer_command_injector",
     "crates/extension",
-    "crates/extension_api",
-    "crates/extension_cli",
     "crates/extension_host",
     "crates/extensions_ui",
     "crates/feature_flags",
@@ -80,7 +71,6 @@ members = [
     "crates/file_finder",
     "crates/file_icons",
     "crates/fs",
-    "crates/fs_benchmarks",
     "crates/fuzzy",
     "crates/fuzzy_nucleo",
     "crates/git",
@@ -94,12 +84,10 @@ members = [
     "crates/gpui",
     "crates/gpui_shared_string",
     "crates/gpui_linux",
-    "crates/gpui_macos",
     "crates/gpui_macros",
     "crates/gpui_platform",
     "crates/gpui_tokio",
     "crates/gpui_util",
-    "crates/gpui_web",
     "crates/gpui_wgpu",
     "crates/gpui_windows",
     "crates/html_to_markdown",
@@ -133,7 +121,6 @@ members = [
     "crates/markdown",
     "crates/markdown_preview",
     "crates/mermaid_render",
-    "crates/media",
     "crates/menu",
     "crates/migrator",
     "crates/miniprofiler_ui",
@@ -158,7 +145,6 @@ members = [
     "crates/platform_title_bar",
     "crates/prettier",
     "crates/project",
-    "crates/project_benchmarks",
     "crates/project_panel",
     "crates/project_symbols",
     "crates/prompt_store",
@@ -178,7 +164,6 @@ members = [
     "crates/sandbox",
     "crates/skill_creator",
     "crates/scheduler",
-    "crates/schema_generator",
     "crates/search",
     "crates/session",
     "crates/settings",
@@ -210,7 +195,6 @@ members = [
     "crates/theme",
     "crates/theme_extension",
     "crates/theme_settings",
-    "crates/theme_importer",
     "crates/theme_selector",
     "crates/time_format",
     "crates/title_bar",
@@ -229,7 +213,6 @@ members = [
     "crates/which_key",
     "crates/workspace",
     "crates/worktree",
-    "crates/worktree_benchmarks",
     "crates/x_ai",
     "crates/zed",
     "crates/zed_actions",
@@ -243,21 +226,10 @@ members = [
     "crates/ztracing_macro",
 
     #
-    # Extensions
-    #
-
-    "extensions/glsl",
-    "extensions/html",
-    "extensions/proto",
-    "extensions/test-extension",
-
-    #
     # Tooling
     #
 
-    "tooling/compliance",
     "tooling/perf",
-    "tooling/xtask",
 ]
 default-members = ["crates/zed"]
 
@@ -299,12 +271,10 @@ clock = { path = "crates/clock" }
 cloud_api_client = { path = "crates/cloud_api_client" }
 cloud_api_types = { path = "crates/cloud_api_types" }
 cloud_llm_client = { path = "crates/cloud_llm_client" }
-collab = { path = "crates/collab" }
 collab_ui = { path = "crates/collab_ui" }
 collections = { path = "crates/collections", version = "0.1.0" }
 command_palette = { path = "crates/command_palette" }
 command_palette_hooks = { path = "crates/command_palette_hooks" }
-compliance = { path = "tooling/compliance" }
 component = { path = "crates/component" }
 component_preview = { path = "crates/component_preview" }
 console = "0.16"
@@ -354,10 +324,8 @@ grammars = { path = "crates/grammars" }
 gpui = { path = "crates/gpui", default-features = false }
 gpui_shared_string = { path = "crates/gpui_shared_string" }
 gpui_linux = { path = "crates/gpui_linux", default-features = false }
-gpui_macos = { path = "crates/gpui_macos", default-features = false }
 gpui_macros = { path = "crates/gpui_macros" }
 gpui_platform = { path = "crates/gpui_platform", default-features = false }
-gpui_web = { path = "crates/gpui_web" }
 gpui_wgpu = { path = "crates/gpui_wgpu" }
 gpui_windows = { path = "crates/gpui_windows", default-features = false }
 gpui_tokio = { path = "crates/gpui_tokio" }
@@ -397,7 +365,6 @@ markdown = { path = "crates/markdown" }
 markdown_preview = { path = "crates/markdown_preview" }
 mermaid_render = { path = "crates/mermaid_render" }
 svg_preview = { path = "crates/svg_preview" }
-media = { path = "crates/media" }
 menu = { path = "crates/menu" }
 migrator = { path = "crates/migrator" }
 mistral = { path = "crates/mistral" }
